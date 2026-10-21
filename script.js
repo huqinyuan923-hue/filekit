@@ -6,7 +6,9 @@ const themeBtn = document.getElementById('themeToggle');
 
 function applyTheme(t) {
   document.documentElement.dataset.theme = t;
+  document.documentElement.style.colorScheme = t;
   themeBtn.textContent = t === 'dark' ? '☀️' : '🌙';
+  themeBtn.setAttribute('aria-label', t === 'dark' ? '切换到浅色模式' : '切换到深色模式');
 }
 applyTheme(localStorage.getItem(THEME_KEY) ||
   (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
@@ -26,12 +28,18 @@ function selectTab(name) {
     t.tabIndex = on ? 0 : -1;
     document.getElementById(`tool-${t.dataset.tool}`).classList.toggle('hidden', !on);
   }
+  if (name !== 'image') ensurePdfLib();
 }
 tabs.forEach(t => t.addEventListener('click', () => selectTab(t.dataset.tool)));
 tabs.forEach((t, i) => t.addEventListener('keydown', e => {
-  if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-  const dir = e.key === 'ArrowRight' ? 1 : -1;
-  const next = tabs[(i + dir + tabs.length) % tabs.length];
+  let nextIndex = null;
+  if (e.key === 'ArrowRight') nextIndex = (i + 1) % tabs.length;
+  else if (e.key === 'ArrowLeft') nextIndex = (i - 1 + tabs.length) % tabs.length;
+  else if (e.key === 'Home') nextIndex = 0;
+  else if (e.key === 'End') nextIndex = tabs.length - 1;
+  if (nextIndex === null) return;
+  e.preventDefault();
+  const next = tabs[nextIndex];
   next.focus(); selectTab(next.dataset.tool);
 }));
 
@@ -113,6 +121,7 @@ function renderImgList() {
         <div class="file-actions"><button class="mini-btn" data-del="${idx}" title="移除">✕</button></div>`;
       li.querySelector('.file-name').textContent = it.name;
       li.querySelector('.err').textContent = it.error;
+      li.querySelector('[data-del]').setAttribute('aria-label', `移除 ${it.name}`);
       imgList.appendChild(li);
       return;
     }
@@ -132,6 +141,10 @@ function renderImgList() {
       </div>`;
 
     li.querySelector('.file-name').textContent = it.outName || it.name;
+    li.querySelector('[data-del]').setAttribute('aria-label', `移除 ${it.name}`);
+    if (it.status === 'done') {
+      li.querySelector('[data-dl]').setAttribute('aria-label', `下载 ${it.outName}`);
+    }
     const meta = li.querySelector('.file-meta');
     if (it.status === 'done') {
       meta.innerHTML = `${fmtBytes(it.origSize)} → ${fmtBytes(it.outSize)}　` +
@@ -209,6 +222,8 @@ async function addImages(files) {
       it.error = file.type === 'image/heic' || file.type === 'image/heif'
         ? '浏览器不支持 HEIC，请先转换'
         : '无法解码该图片';
+    } finally {
+      it.file = null;
     }
     renderImgList();
   }
@@ -241,20 +256,46 @@ $('imgDownloadAll').addEventListener('click', async () => {
 });
 
 /* ================= PDF：公共 ================= */
-const { PDFDocument } = self.PDFLib || {};
+let PDFDocument = null;
+let pdfLibPromise = null;
 
-function pdfLibReady() {
-  if (!self.PDFLib) {
-    toast('PDF 组件尚未加载完成，请稍候重试或检查网络');
+function loadPdfLib() {
+  if (self.PDFLib?.PDFDocument) return Promise.resolve(self.PDFLib.PDFDocument);
+  if (!pdfLibPromise) {
+    pdfLibPromise = new Promise((resolve, reject) => {
+      const script = document.createElement('script');
+      script.src = 'pdf-lib.min.js';
+      script.onload = () => {
+        const ctor = self.PDFLib?.PDFDocument;
+        if (ctor) resolve(ctor);
+        else reject(new Error('PDFLib 未就绪'));
+      };
+      script.onerror = () => reject(new Error('PDFLib 下载失败'));
+      document.head.appendChild(script);
+    }).catch((err) => {
+      pdfLibPromise = null;
+      throw err;
+    });
+  }
+  return pdfLibPromise;
+}
+
+async function ensurePdfLib() {
+  if (PDFDocument) return true;
+  try {
+    PDFDocument = await loadPdfLib();
+    $('pdfLibWarn').classList.add('hidden');
+    return true;
+  } catch {
+    $('pdfLibWarn').classList.remove('hidden');
     return false;
   }
-  return true;
 }
 
 async function readPdf(file) {
   const bytes = await file.arrayBuffer();
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
-  return { name: file.name, size: file.size, bytes, doc, pages: doc.getPageCount() };
+  return { name: file.name, size: file.size, doc, pages: doc.getPageCount() };
 }
 
 /* ================= PDF 合并 ================= */
@@ -264,17 +305,17 @@ const mergeDrop = $('mergeDrop'), mergeInput = $('mergeInput'), mergeList = $('m
 bindDropzone(mergeDrop, mergeInput, files => addMerge(files));
 
 async function addMerge(files) {
-  if (!pdfLibReady()) return;
   const pdfs = files.filter(f => /\.pdf$/i.test(f.name) || f.type === 'application/pdf');
   if (files.length && !pdfs.length) { toast('请选择 PDF 文件'); return; }
+  if (!(await ensurePdfLib())) return;
   for (const f of pdfs) {
     try {
       mergeQueue.push(await readPdf(f));
     } catch {
       toast(`「${f.name}」无法解析（可能是加密 PDF）`);
     }
-    renderMerge();
   }
+  renderMerge();
 }
 
 function renderMerge() {
@@ -295,6 +336,9 @@ function renderMerge() {
       </div>`;
     li.querySelector('.file-name').textContent = it.name;
     li.querySelector('.file-meta').textContent = `${it.pages} 页 · ${fmtBytes(it.size)}`;
+    li.querySelector('[data-up]').setAttribute('aria-label', `上移 ${it.name}`);
+    li.querySelector('[data-down]').setAttribute('aria-label', `下移 ${it.name}`);
+    li.querySelector('[data-del]').setAttribute('aria-label', `移除 ${it.name}`);
     mergeList.appendChild(li);
   });
   $('mergeGo').disabled = mergeQueue.length < 2;
@@ -319,7 +363,7 @@ mergeList.addEventListener('click', e => {
 $('mergeClear').addEventListener('click', () => { mergeQueue.length = 0; renderMerge(); });
 
 $('mergeGo').addEventListener('click', async () => {
-  if (!pdfLibReady() || mergeQueue.length < 2) return;
+  if (mergeQueue.length < 2 || !(await ensurePdfLib())) return;
   $('mergeGo').disabled = true;
   try {
     const out = await PDFDocument.create();
@@ -344,8 +388,8 @@ bindDropzone(extractDrop, extractInput, files => loadExtract(files[0]));
 
 async function loadExtract(file) {
   if (!file) return;
-  if (!pdfLibReady()) return;
   if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') { toast('请选择 PDF 文件'); return; }
+  if (!(await ensurePdfLib())) return;
   try {
     const it = await readPdf(file);
     extractDoc = it;
@@ -383,7 +427,7 @@ function parseRanges(text, total) {
 }
 
 $('extractGo').addEventListener('click', async () => {
-  if (!extractDoc || !pdfLibReady()) return;
+  if (!extractDoc || !(await ensurePdfLib())) return;
   let ranges;
   try {
     ranges = parseRanges($('pageRanges').value, extractDoc.pages);
@@ -434,7 +478,9 @@ function addExtractRow(name, pages, blob) {
     <div class="file-actions"><button class="mini-btn go">下载</button></div>`;
   li.querySelector('.file-name').textContent = name;
   li.querySelector('.file-meta').textContent = `${pages} 页 · ${fmtBytes(blob.size)}`;
-  li.querySelector('.mini-btn.go').addEventListener('click', () => triggerDownload(blob, name));
+  const btn = li.querySelector('.mini-btn.go');
+  btn.setAttribute('aria-label', `下载 ${name}`);
+  btn.addEventListener('click', () => triggerDownload(blob, name));
   extractList.appendChild(li);
 }
 

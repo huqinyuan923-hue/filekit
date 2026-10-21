@@ -1,12 +1,14 @@
 :root {
+  color-scheme: light;
   --bg: #f4f7f6;
   --bg-card: #ffffff;
   --fg: #14231f;
   --fg-muted: #5a6f68;
   --border: #dce6e2;
-  --accent: #0d9488;
-  --accent-strong: #0b7c72;
+  --accent: #0f766e;
+  --accent-strong: #115e59;
   --accent-soft: #e2f3f0;
+  --btn-fg: #fff;
   --danger: #d33;
   --ok: #0a7d33;
   --warn-bg: #fdf3e0;
@@ -16,6 +18,7 @@
 }
 
 [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #0e1413;
   --bg-card: #17211f;
   --fg: #e4eeeb;
@@ -24,6 +27,7 @@
   --accent: #2dd4bf;
   --accent-strong: #5fe0d0;
   --accent-soft: #10312d;
+  --btn-fg: #04231f;
   --danger: #ff7b72;
   --ok: #56d364;
   --warn-bg: #33270e;
@@ -48,6 +52,11 @@ body {
 }
 
 ::selection { background: var(--accent); color: #fff; }
+
+:where(a, button, input, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
 
 .wrap { max-width: 880px; margin: 0 auto; padding: 0 16px; }
 .sr-only {
@@ -132,7 +141,7 @@ main { padding: 20px 16px 40px; }
 .radio-row input { accent-color: var(--accent); }
 
 .btn {
-  border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  border: 1px solid var(--accent); background: var(--accent); color: var(--btn-fg);
   font-family: inherit; font-size: 0.92rem; font-weight: 600;
   padding: 8px 18px; border-radius: 9px; cursor: pointer; text-decoration: none; display: inline-block;
 }
@@ -192,4 +201,13 @@ main { padding: 20px 16px 40px; }
 @media (max-width: 560px) {
   .file-item { flex-wrap: wrap; }
   .file-actions { width: 100%; justify-content: flex-end; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

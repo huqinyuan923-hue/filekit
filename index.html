@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="FileKit · 纯前端文件工具箱：图片压缩、格式转换、PDF 合并与页面提取，所有处理在浏览器本地完成，文件不上传。">
+  <meta name="theme-color" content="#f4f7f6" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e1413" media="(prefers-color-scheme: dark)">
   <title>FileKit · 文件工具箱</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d9488'/%3E%3Cpath d='M18 24a4 4 0 0 1 4-4h8l4 5h8a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
@@ -24,13 +26,14 @@
   </header>
 
   <main id="main" class="wrap">
-    <p id="pdfLibWarn" class="banner warn hidden">PDF 组件加载失败，请刷新页面重试；图片功能不受影响。</p>
+    <h1 class="sr-only">FileKit 文件工具箱</h1>
+    <p id="pdfLibWarn" class="banner warn hidden" role="alert">PDF 组件加载失败（网络或 CDN 异常），切回 PDF 工具会自动重试；图片功能不受影响。</p>
 
     <!-- ============ 图片压缩 ============ -->
     <section id="tool-image" role="tabpanel" aria-labelledby="tab-image" class="tool-panel">
-      <div class="dropzone" id="imgDrop" tabindex="0" role="button" aria-label="选择或拖入图片">
-        <p class="dz-main">拖入 / 粘贴 / 点击选择图片</p>
-        <p class="dz-sub">支持 JPG · PNG · WebP · GIF 首帧 · BMP，可多选，全程本地处理</p>
+      <div class="dropzone" id="imgDrop" tabindex="0" role="button" aria-labelledby="imgDropTitle imgDropSub">
+        <p class="dz-main" id="imgDropTitle">拖入 / 粘贴 / 点击选择图片</p>
+        <p class="dz-sub" id="imgDropSub">支持 JPG · PNG · WebP · GIF 首帧 · BMP，可多选，全程本地处理</p>
         <input type="file" id="imgInput" accept="image/*" multiple hidden>
       </div>
 
@@ -67,9 +70,9 @@
 
     <!-- ============ PDF 合并 ============ -->
     <section id="tool-merge" role="tabpanel" aria-labelledby="tab-merge" class="tool-panel hidden">
-      <div class="dropzone" id="mergeDrop" tabindex="0" role="button" aria-label="选择或拖入 PDF">
-        <p class="dz-main">拖入 / 点击选择多个 PDF</p>
-        <p class="dz-sub">按下方列表顺序合并，可用 ↑ ↓ 调整先后</p>
+      <div class="dropzone" id="mergeDrop" tabindex="0" role="button" aria-labelledby="mergeDropTitle mergeDropSub">
+        <p class="dz-main" id="mergeDropTitle">拖入 / 点击选择多个 PDF</p>
+        <p class="dz-sub" id="mergeDropSub">按下方列表顺序合并，可用 ↑ ↓ 调整先后</p>
         <input type="file" id="mergeInput" accept="application/pdf" multiple hidden>
       </div>
       <ul class="file-list" id="mergeList" aria-live="polite"></ul>
@@ -81,9 +84,9 @@
 
     <!-- ============ PDF 提取 ============ -->
     <section id="tool-extract" role="tabpanel" aria-labelledby="tab-extract" class="tool-panel hidden">
-      <div class="dropzone" id="extractDrop" tabindex="0" role="button" aria-label="选择或拖入 PDF">
-        <p class="dz-main">拖入 / 点击选择一个 PDF</p>
-        <p class="dz-sub">提取指定页码范围，或按页拆分成多个 PDF</p>
+      <div class="dropzone" id="extractDrop" tabindex="0" role="button" aria-labelledby="extractDropTitle extractDropSub">
+        <p class="dz-main" id="extractDropTitle">拖入 / 点击选择一个 PDF</p>
+        <p class="dz-sub" id="extractDropSub">提取指定页码范围，或按页拆分成多个 PDF</p>
         <input type="file" id="extractInput" accept="application/pdf" hidden>
       </div>
 
@@ -120,7 +123,6 @@
 
   <div id="toast" class="toast hidden" role="status"></div>
 
-  <script src="pdf-lib.min.js"></script>
   <script src="script.js"></script>
 </body>
 </html>
