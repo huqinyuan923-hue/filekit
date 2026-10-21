@@ -94,6 +94,8 @@ function imgOpts() {
   };
 }
 
+$('quality').addEventListener('input', e => { $('qVal').textContent = `${e.target.value}%`; });
+
 function renderImgList() {
   imgList.innerHTML = '';
   let done = 0;
