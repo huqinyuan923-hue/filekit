@@ -9,8 +9,31 @@
   <title>FileKit · 文件工具箱</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d9488'/%3E%3Cpath d='M18 24a4 4 0 0 1 4-4h8l4 5h8a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
+  <style>
+    /* 进站动画：文件归档（每会话一次） */
+    #boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#0f172a;font-family:system-ui,sans-serif;animation:fkOut .5s ease 1.8s forwards}
+    #boot .f-logo{color:#2dd4bf;font-size:clamp(24px,5vw,42px);font-weight:800;animation:fkIn .5s ease both}
+    #boot .f-files{display:flex;gap:12px}
+    #boot .f-files span{font-size:32px;opacity:0;animation:fkDrop .4s cubic-bezier(.22,1,.36,1) both}
+    #boot .f-files span:nth-child(1){animation-delay:.35s}
+    #boot .f-files span:nth-child(2){animation-delay:.55s}
+    #boot .f-files span:nth-child(3){animation-delay:.75s}
+    #boot .f-files span:nth-child(4){animation-delay:.95s}
+    #boot .f-sub{color:#94a3b8;font-size:13px;letter-spacing:.12em;opacity:0;animation:fkIn .35s ease 1.25s both}
+    @keyframes fkIn{from{opacity:0;transform:translateY(10px)}}
+    @keyframes fkDrop{from{opacity:0;transform:translateY(-26px) scale(.7)}}
+    @keyframes fkOut{to{opacity:0;visibility:hidden;transform:scale(1.03)}}
+    @media (prefers-reduced-motion:reduce){#boot{display:none}}
+  </style>
 </head>
 <body>
+  <!-- 进站引导（每会话一次） -->
+  <div id="boot" aria-hidden="true">
+    <div class="f-logo">FILEKIT</div>
+    <div class="f-files"><span>📄</span><span>🖼️</span><span>📊</span><span>🗂️</span></div>
+    <div class="f-sub">FORMAT · COMPRESS · CONVERT</div>
+  </div>
+  <script>try{if(sessionStorage.getItem('boot-seen')){var b=document.getElementById('boot');b&&(b.style.display='none')}else{sessionStorage.setItem('boot-seen','1')}}catch(e){}</script>
   <a class="skip-link" href="#main">跳到主要内容</a>
 
   <header class="site-header">
