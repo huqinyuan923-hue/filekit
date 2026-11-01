@@ -10,35 +10,81 @@
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d9488'/%3E%3Cpath d='M18 24a4 4 0 0 1 4-4h8l4 5h8a4 4 0 0 1 4 4v13a4 4 0 0 1-4 4H22a4 4 0 0 1-4-4z' fill='%23fff'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
   <style>
-    /* 进站动画：文件归档（每会话一次） */
-    #boot{position:fixed;inset:0;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(ellipse 80% 55% at 50% 28%,rgba(45,212,191,.14),transparent),#0f172a;font-family:system-ui,sans-serif;animation:fkOut .5s cubic-bezier(.65,0,.35,1) 2.55s forwards}
-    #boot .f-logo{font-size:clamp(24px,5vw,42px);font-weight:800;letter-spacing:.04em;background:linear-gradient(100deg,#2dd4bf,#60a5fa 55%,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent;animation:fkIn .5s cubic-bezier(.22,1,.36,1) both}
-    #boot .f-files{display:flex;gap:12px;height:40px;align-items:center}
-    #boot .f-files span{font-size:32px;opacity:0;animation:fkDrop .45s cubic-bezier(.22,1,.36,1) both}
-    #boot .f-files span:nth-child(1){animation-delay:.35s}
-    #boot .f-files span:nth-child(2){animation-delay:.5s}
-    #boot .f-files span:nth-child(3){animation-delay:.65s}
-    #boot .f-files span:nth-child(4){animation-delay:.8s}
-    #boot .f-bar{width:min(260px,60vw);height:3px;border-radius:999px;overflow:hidden;background:rgba(45,212,191,.16);opacity:0;animation:fkIn .3s ease 1.1s both}
-    #boot .f-bar::before{content:'';display:block;height:100%;background:linear-gradient(90deg,#2dd4bf,#60a5fa);transform:scaleX(0);transform-origin:left;animation:fkFill 1.1s cubic-bezier(.3,0,.4,1) 1.2s forwards}
-    #boot .f-sub{color:#94a3b8;font-size:13px;letter-spacing:.12em;opacity:0;animation:fkIn .35s ease 1.65s both}
-    #boot .f-sub .ok{color:#2dd4bf;font-weight:600}
-    @keyframes fkIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+    /* 进站引导：文件归档流水线（每会话一次）
+       起播锚点：脚本等遮罩首帧真正上屏后把 data-boot 从 playing 切到 go，
+       所有动画都挂在 [data-boot='go'] 上，慢网络下不会被提前跑完截断；
+       收尾：进度条动画结束 → JS 加 boot-out 类淡出 → 淡出结束切 done 卸载。
+       无 JS / 减少动效 → 遮罩不出现，直接进正文。 */
+    html[data-boot='done'] #boot{display:none}
+    #boot{display:none;position:fixed;inset:0;z-index:9999;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:radial-gradient(ellipse 80% 55% at 50% 28%,rgba(45,212,191,.14),transparent),#0f172a;font-family:system-ui,sans-serif}
+    html[data-boot='playing'] #boot,html[data-boot='go'] #boot{display:flex}
+    html.boot-out #boot{animation:fkOut .5s cubic-bezier(.65,0,.35,1) forwards}
+    #boot .b-brand{font-size:clamp(24px,5vw,42px);font-weight:800;letter-spacing:.04em;background:linear-gradient(100deg,#2dd4bf,#60a5fa 55%,#a78bfa);-webkit-background-clip:text;background-clip:text;color:transparent;display:flex;align-items:baseline}
+    #boot .b-caret{display:inline-block;width:.06em;height:.82em;margin-left:.1em;border-radius:1px;background:#2dd4bf;animation:fkBlink 1.1s steps(1,end) infinite}
+    #boot .b-files{display:flex;gap:12px;height:40px;align-items:center}
+    #boot .b-files span{font-size:32px;opacity:0}
+    #boot .b-rows{display:flex;flex-direction:column;gap:5px;min-width:min(320px,78vw);font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;letter-spacing:.02em}
+    #boot .b-rows .row{display:grid;grid-template-columns:1fr auto auto auto 16px;gap:10px;align-items:center;color:#94a3b8;opacity:0}
+    #boot .b-rows .row .to{color:#e2e8f0}
+    #boot .b-rows .row .gain{color:#2dd4bf}
+    #boot .b-rows .row .chk{color:#2dd4bf;font-weight:700;opacity:0}
+    #boot .b-bar{width:min(280px,62vw);height:3px;border-radius:999px;overflow:hidden;background:rgba(45,212,191,.16);opacity:0}
+    #boot .b-bar::before{content:'';display:block;height:100%;background:linear-gradient(90deg,#2dd4bf,#60a5fa);transform:scaleX(0);transform-origin:left}
+    #boot .b-foot{display:flex;gap:12px;align-items:center;color:#94a3b8;font-size:12px;letter-spacing:.14em;opacity:0}
+    #boot .b-foot .ok{color:#2dd4bf;font-weight:600}
+    #boot .b-sum{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:12px;letter-spacing:.04em;color:#64748b;opacity:0}
+    #boot .b-sum b{color:#2dd4bf;font-weight:600}
+    #boot .b-pct{font-family:ui-monospace,monospace;color:#cbd5e1;opacity:0;counter-reset:bootn var(--bootn)}
+    #boot .b-pct::after{content:counter(bootn) '%'}
+    #boot .b-ready{font-family:ui-monospace,monospace;font-size:12px;letter-spacing:.3em;color:#a78bfa;opacity:0}
+    html[data-boot='go'] #boot .b-files span{animation:fkDrop .42s cubic-bezier(.22,1,.36,1) both}
+    html[data-boot='go'] #boot .b-files span:nth-child(1){animation-delay:.15s}
+    html[data-boot='go'] #boot .b-files span:nth-child(2){animation-delay:.28s}
+    html[data-boot='go'] #boot .b-files span:nth-child(3){animation-delay:.41s}
+    html[data-boot='go'] #boot .b-files span:nth-child(4){animation-delay:.54s}
+    html[data-boot='go'] #boot .b-bar{animation:fkIn .3s ease .45s both}
+    html[data-boot='go'] #boot .b-bar::before{animation:fkFill 1.55s cubic-bezier(.3,0,.4,1) .6s forwards}
+    html[data-boot='go'] #boot .b-pct{animation:fkIn .3s ease .5s both,fkCount 1.55s cubic-bezier(.3,0,.4,1) .6s both}
+    html[data-boot='go'] #boot .b-foot{animation:fkIn .3s ease .5s both}
+    html[data-boot='go'] #boot .b-rows .row{animation:fkIn .3s cubic-bezier(.2,.7,.3,1) both}
+    html[data-boot='go'] #boot .b-rows .row:nth-child(1){animation-delay:.75s}
+    html[data-boot='go'] #boot .b-rows .row:nth-child(2){animation-delay:.95s}
+    html[data-boot='go'] #boot .b-rows .row:nth-child(3){animation-delay:1.15s}
+    html[data-boot='go'] #boot .b-rows .row .chk{animation:fkPop .3s cubic-bezier(.34,1.56,.64,1) both}
+    html[data-boot='go'] #boot .b-rows .row:nth-child(1) .chk{animation-delay:1.05s}
+    html[data-boot='go'] #boot .b-rows .row:nth-child(2) .chk{animation-delay:1.25s}
+    html[data-boot='go'] #boot .b-rows .row:nth-child(3) .chk{animation-delay:1.45s}
+    html[data-boot='go'] #boot .b-sum{animation:fkIn .3s ease 1.6s both}
+    html[data-boot='go'] #boot .b-ready{animation:fkIn .3s ease 2.2s both}
+    @keyframes fkIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
     @keyframes fkDrop{from{opacity:0;transform:translateY(-26px) scale(.7)}to{opacity:1;transform:none}}
+    @keyframes fkPop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:none}}
     @keyframes fkFill{to{transform:scaleX(1)}}
+    @keyframes fkBlink{0%,55%{opacity:1}56%,100%{opacity:0}}
+    @property --bootn{syntax:'<integer>';initial-value:0;inherits:false}
+    @keyframes fkCount{from{--bootn:0}to{--bootn:100}}
     @keyframes fkOut{to{opacity:0;visibility:hidden;transform:scale(1.04)}}
-    @media (prefers-reduced-motion:reduce){#boot{display:none}}
+    @media (prefers-reduced-motion:reduce){#boot{display:none!important}}
   </style>
+  <script>
+    (function(){try{var d=document.documentElement,s=sessionStorage;if(s.getItem('boot-seen')){d.dataset.boot='done'}else if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches){d.dataset.boot='done';s.setItem('boot-seen','1')}else{s.setItem('boot-seen','1');d.dataset.boot='playing';var out=function(){if(d.dataset.boot==='go'){d.classList.add('boot-out')}};var cap=setTimeout(function(){if(d.dataset.boot==='playing'){d.dataset.boot='done'}else{out()}},9000);var start=function(){if(d.dataset.boot!=='playing')return;d.dataset.boot='go';clearTimeout(cap);cap=setTimeout(out,5600)};document.addEventListener('animationend',function(e){if(e.animationName==='fkFill'){setTimeout(out,500)}else if(e.animationName==='fkOut'){d.dataset.boot='done'}});var go=function(){if(d.dataset.boot!=='playing')return;if(!document.getElementById('boot')){if(go.n++!==100){setTimeout(go,30);return}}var r=window.requestAnimationFrame;r?r(function(){r(start)}):setTimeout(start,32)};go.n=0;go()}}catch(e){}})();
+  </script>
 </head>
 <body>
-  <!-- 进站引导（每会话一次） -->
+  <!-- 进站引导（每会话一次）：文件落入 → 逐份压缩 → 归档完成 -->
   <div id="boot" aria-hidden="true">
-    <div class="f-logo">FILEKIT</div>
-    <div class="f-files"><span>📄</span><span>🖼️</span><span>📊</span><span>🗂️</span></div>
-    <div class="f-bar"></div>
-    <div class="f-sub"><span class="ok">✓ 4 FILES READY</span> · 0 BYTES UPLOADED</div>
+    <div class="b-brand">FILEKIT<span class="b-caret"></span></div>
+    <div class="b-files"><span>📄</span><span>🖼️</span><span>📊</span><span>🗂️</span></div>
+    <div class="b-rows">
+      <div class="row"><span class="name">photo-2048.jpg</span><span class="from">4.2 MB</span><span class="to">612 KB</span><span class="gain">-85%</span><span class="chk">✓</span></div>
+      <div class="row"><span class="name">report-final.pdf</span><span class="from">12.6 MB</span><span class="to">3.1 MB</span><span class="gain">-75%</span><span class="chk">✓</span></div>
+      <div class="row"><span class="name">scan-page-01.png</span><span class="from">8.9 MB</span><span class="to">1.4 MB</span><span class="gain">-84%</span><span class="chk">✓</span></div>
+    </div>
+    <div class="b-sum">合计 25.7 MB → 5.1 MB · <b>省 80%</b></div>
+    <div class="b-bar"></div>
+    <div class="b-foot"><span class="b-pct"></span><span><span class="ok">本地处理</span> · 0 字节上传</span></div>
+    <div class="b-ready">READY</div>
   </div>
-  <script>try{if(sessionStorage.getItem('boot-seen')){var b=document.getElementById('boot');b&&(b.style.display='none')}else{sessionStorage.setItem('boot-seen','1')}}catch(e){}</script>
   <a class="skip-link" href="#main">跳到主要内容</a>
 
   <header class="site-header">
